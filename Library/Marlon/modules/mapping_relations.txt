@@ -1,0 +1,155 @@
+<?php
+
+namespace Library\Marlon\Modules;
+
+use Library\Marlon\DB\Connection;
+
+use \Exception;
+
+abstract class Model
+{
+    private static $foreignArray = [];
+    private static $currentForeignKey = [];
+    private static $findOne = [];
+    private static $find = [];
+    protected $db;
+    protected $fillables = [];
+    protected $ralations = [];
+
+    public function __construct()
+    {
+        $connection = new Connection();
+        
+        $this->db = $connection->loadSgbd($this->table, get_class($this));
+    }
+
+    private function getForeignArray()
+    {
+        if( !isset(self::$foreignArray[$this->table]) )
+            self::$foreignArray[$this->table] = $this->db->getForeingKeys();
+
+        return self::$foreignArray[$this->table];
+    }
+
+    public function hasMany($classChild)
+    {
+        $model = new $classChild();
+        $relationName = $this->createPropertyName();
+        $foreign = $this->getCurrentForeignKey($model);
+        if( property_exists($this, 'id')){
+            $foreign = NULL;
+            $relations = [];
+    
+            if( ($foreign = $this->getCurrentForeignKey($model))  != NULL )
+                $relations = $model::all([$foreign => $this->id]);
+            
+            $this->{$relationName} = $relations;
+        }
+        else{
+            $this->ralations[$model->table] = [$model,$relationName,$foreign];
+        }
+
+        return $this;
+    }
+    
+    public function belongsTo($classParent, $fk = '')
+    {        
+        $model = new $classParent();
+
+        foreach( $this->getForeignArray() as $foreigns)
+        {
+            if( $model->table == $foreigns['main_table'] )
+            {
+                $foreign = $this->{$foreigns["foreign_id"]};
+                return $model::get(['id' => $foreign]);
+            }
+        }
+        return NULL;
+    }
+
+    public function getCurrentForeignKey($model)
+    {
+        $cacheId = "{$this->table}-hasMany-{$model->table}";
+
+        if( !isset(self::$currentForeignKey[$cacheId]) )
+        {
+            foreach($model->getForeignArray()  as $foreigns)
+            {
+                if( $this->table == $foreigns['main_table'] )
+                {
+                    self::$currentForeignKey[$cacheId] = $foreigns;
+                    break;
+                }
+            }
+        }
+        
+        return self::$currentForeignKey[$cacheId];
+    }
+    
+    public function createPropertyName()
+    {
+        $trace = debug_backtrace();
+        if( isset($trace[2]) && isset($trace[2]['function']) ){
+            return $trace[2]['function'];
+        }
+    }
+
+    public function save(array $data)
+    {
+        $allowed = [];
+        foreach($data as $field => $item)
+        {
+            if( in_array($field, $this->fillables) )
+            {
+                $allowed[$field] = $item;
+            }
+        }
+        
+        if( empty($allowed) ){
+            throw new Exception("Do you need set the fillables property");
+        }
+
+        $allowed["createdAt"] = date('Y-m-d H:i:s');
+        
+        return $this->db->insert($allowed);
+    }
+
+    public function find()
+    {
+        $modelArray = $this->db->select()->order(['id DESC'])->find();
+        
+        foreach($modelArray as $item)
+        {
+            foreach($this->ralations as $relation)
+            {
+                list($foreignClass, $alias, $fk) = $relation;
+                $rows = $foreignClass->db->where([$fk['foreign_id'] => $item[$fk['main_id']]])->find();
+                $item[$alias] = $rows;
+            }
+            $data[] = $item;
+        }
+        return $data;
+    }
+
+    public static function get($where)
+    {
+        $model = new static;
+        $cacheId = $model->table.'-'.implode("|", $where);
+        
+        if( !isset(self::$findOne[$cacheId]) )
+            self::$findOne[$cacheId] = $model->db->where($where)->findOne();
+        
+        return self::$findOne[$cacheId];
+    }
+
+    public static function all($where = [])
+    {
+        $model = new static;
+        $cacheId = $model->table.'-'.implode("|", $where);
+        
+        if( !isset(self::$find[$cacheId]) )
+            self::$find[$cacheId] = $model->db->where($where)->find();
+        
+        return self::$find[$cacheId];
+    }
+}

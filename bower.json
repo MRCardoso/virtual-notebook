@@ -1,0 +1,23 @@
+{
+  "name": "virtual-notebook",
+  "authors": [
+    "MRCardoso <marlonrcardoso@yahoo.com.br>"
+  ],
+  "description": "",
+  "main": "index.php",
+  "license": "MIT",
+  "homepage": "",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "jquery": "^3.2.1",
+    "bootstrap": "^3.3.7",
+    "bootbox.js": "^4.4.0",
+    "font-awesome": "^4.7.0"
+  }
+}

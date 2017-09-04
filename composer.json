@@ -1,0 +1,9 @@
+{
+    "name": "virtual-notebook",
+    "description":"Virtual notebook, create in php pure with OOP",
+    "require": {
+		"php": ">=7.1",
+		"phpmailer/phpmailer": "~6.0",
+        "vlucas/phpdotenv": "^2.4"
+    }
+}
