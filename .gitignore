@@ -1,1 +1,4 @@
 virtual-notebook.json
+.env
+create.sh
+vendor
